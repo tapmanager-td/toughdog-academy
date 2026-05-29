@@ -1,0 +1,76 @@
+// ToughDog Academy — Database Schema
+// See ARCHITECTURE.md for full table reference
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// CORE: Companies & Users
+// ============================================================
+
+/// Partner companies (integrators and distributors).
+/// End users and internal staff are not associated with a company.
+model Company {
+  id            String   @id @default(uuid()) @db.Uuid
+  techId        String   @unique @map("tech_id") @db.VarChar(20)
+  name          String   @db.VarChar(200)
+  type          String   @db.VarChar(20) // 'integrator' | 'distributor'
+  status        String   @default("active") @db.VarChar(20) // 'active' | 'inactive' | 'suspended'
+
+  addressLine1  String?  @map("address_line1") @db.VarChar(200)
+  city          String?  @db.VarChar(100)
+  stateProvince String?  @map("state_province") @db.VarChar(100)
+  postalCode    String?  @map("postal_code") @db.VarChar(20)
+  country       String?  @db.VarChar(50)
+  taxId         String?  @map("tax_id") @db.VarChar(50)
+  phone         String?  @db.VarChar(30)
+
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  users         User[]
+
+  @@map("companies")
+}
+
+/// All platform users — public, partner, and internal staff.
+model User {
+  id                String    @id @default(uuid()) @db.Uuid
+  email             String    @unique @db.VarChar(255)
+  passwordHash      String    @map("password_hash") @db.VarChar(255)
+  firstName         String    @map("first_name") @db.VarChar(100)
+  lastName          String    @map("last_name") @db.VarChar(100)
+  phone             String?   @db.VarChar(30)
+  preferredLanguage String    @default("en") @map("preferred_language") @db.VarChar(5)
+
+  companyId         String?   @map("company_id") @db.Uuid
+  company           Company?  @relation(fields: [companyId], references: [id])
+
+  status            String    @default("active") @db.VarChar(20) // 'active' | 'pending' | 'suspended'
+
+  emailVerifiedAt   DateTime? @map("email_verified_at") @db.Timestamptz
+  lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz
+
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  roles             UserRole[]
+
+  @@map("users")
+}
+
+/// Multi-role support — a user can have one or more roles.
+/// Example: admin + instructor for you.
+model UserRole {
+  userId String @map("user_id") @db.Uuid
+  role   String @db.VarChar(30)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, role])
+  @@map("user_roles")
+}
